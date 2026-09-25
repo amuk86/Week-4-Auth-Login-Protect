@@ -1,9 +1,9 @@
 import os
-
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from supabase import Client, create_client
+from pydantic import BaseModel
 
 # Load variables from .env
 load_dotenv()
@@ -39,6 +39,43 @@ def root():
     }
 
 
+
+
+# Stage 1
+
+class AuthRequest(BaseModel):
+    email: str | None=None
+    password: str| None=None
+
+@app.post("/auth/signup", status_code=201)
+def signup(body: AuthRequest):
+    if not body.email or not body.password:
+        raise HTTPException(status_code=400, detail="email and password")
+
+    try:
+        result = supabase.auth.sign_up({
+            "email": body.email,
+            "password": body.password,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return{"user":result.user}
+
+@app.post("/auth/login")
+def login(body: AuthRequest):
+    if not body.email or not body.password:
+        raise HTTPException(status_code=400, detail="email and password")
+
+    try:
+        result = supabase.auth.sign_in_with_password({
+            "email": body.email,
+            "password": body.password,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="invalid login")
+    return {"access_token": result.session.access_token,
+        "refresh_token": result.session.refresh_token}
+
 # Start the server
 if __name__ == "__main__":
     print("Server running and connected to Supabase")
@@ -48,4 +85,3 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=PORT
     )
-
