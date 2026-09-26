@@ -1,7 +1,8 @@
 import os
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from supabase import Client, create_client
 from pydantic import BaseModel
 
@@ -75,6 +76,24 @@ def login(body: AuthRequest):
         raise HTTPException(status_code=401, detail="invalid login")
     return {"access_token": result.session.access_token,
         "refresh_token": result.session.refresh_token}
+
+#Stage 2
+@app.get("/public/info")
+def public_info():
+    return {"message": "Welcome stranger! This info is public."}
+
+@app.get("/protected/profil")
+def protected_profile(request: Request):
+    auth_header=request._headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return JSONResponse(status_code=401, content={"error": "Access token required"})
+
+    parts = auth_header.split(" ")
+    token = parts[1] if len(parts) > 1 and parts[1] else None
+
+    if not token:
+        return JSONResponse(status_code=401, content={"error": "Access token required"})
+    return {"message": "token received (not yet verified)", "token": token}
 
 # Start the server
 if __name__ == "__main__":
